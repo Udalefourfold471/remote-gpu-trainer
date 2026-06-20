@@ -22,7 +22,7 @@ scenario's `must_cover` points within ~2 hops.
 | data-worker-rng-dup | **PASS** | 1 | SKILL.md "When training breaks" → `data-pipeline.md` DP1 (numpy fork-RNG dup; worker_init_fn fix) |
 | oom-on-step-2 | **PASS** | ≤2 | SKILL.md "When training breaks" → `oom-memory.md` (fit-it ladder + OOM-at-step-2 / Adam lazy state) |
 | nccl-one-rank-hang | **PASS** | ≤2 | SKILL.md → `distributed-launch.md` (desync toolkit D19 / one-rank-diverged D20) |
-| diffusion-loss-low-samples-bad | **PASS** | ≤2 | SKILL.md → `by-domain.md` diffusion section (D1 loss≠quality, D2 EMA weights) |
+| diffusion-loss-low-samples-bad | **PASS** | ≤2 | SKILL.md → `by-domain.md` diffusion section (DF1 loss≠quality, DF2 EMA weights) |
 | nan-loss-spike-bf16 | **PASS** | ≤2 | SKILL.md "When training breaks" → `precision-stability.md` P8/P12/P15 (NaN-origin + warmup spike + z-loss) |
 | resume-epoch-reset | **PASS** | 1 | SKILL.md → `checkpoint-resume.md` C1/C12/C14 (save FULL state: epoch/step/scheduler/RNG/scaler) |
 | throughput-gpu-starved | **PASS** | ≤2 | SKILL.md → `throughput-profiling.md` T1/T4 (GPU-bound vs data-bound; num_workers/prefetch) |

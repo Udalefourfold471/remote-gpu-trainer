@@ -17,7 +17,7 @@ To jump: `grep -in '<keyword>' references/training/by-domain.md` (e.g. `padding`
 
 - **LLM** — L1 pad-side · L2 loss-mask-−100 · L3 pad-token-unset · L4 packing-cross-contamination · L5 RoPE-context-extension · L6 grad-explosion+z-loss · L7 eval-perplexity-mask · L8 SFT/DPO/RLHF-data-format · L9 DPO-collapse+KL · L10 gated-token-before-Trainer
 - **Vision (cls/det/seg)** — V1 normalization-mismatch · V2 aug-on-eval · V3 mAP=0 · V4 anchor/NMS/conf-thresh · V5 mIoU=0 ignore_index/off-by-one · V6 class-imbalance · V7 BN-tiny-batch
-- **Diffusion** — D1 loss-low-samples-bad (cross-link) · D2 EMA-weights · D3 VAE-scaling · D4 noise-schedule/timestep · D5 CFG-conditioning-dropout · D6 sampler-vs-model · D7 SNR-weighting
+- **Diffusion** — DF1 loss-low-samples-bad (cross-link) · DF2 EMA-weights · DF3 VAE-scaling · DF4 noise-schedule/timestep · DF5 CFG-conditioning-dropout · DF6 sampler-vs-model · DF7 SNR-weighting
 - **RL** — R1 reward-collapse · R2 KL-blowup · R3 whitening · R4 replay/obs-normalization · R5 non-stationarity · R6 seed-variance (cross-link)
 - **VLM** — X1 stage-freeze · X2 projector-only-stage1 · X3 per-group-LR · X4 image-token-truncation · X5 alignment-collapse (cross-link)
 - **Pointers** — precision-stability.md, oom-memory.md, gotchas_universal.md, verifying-dl-experiments (skill)
@@ -119,40 +119,40 @@ To jump: `grep -in '<keyword>' references/training/by-domain.md` (e.g. `padding`
 
 ## Diffusion / generative
 
-### D1 — Loss is low but samples are bad → the canonical "loss ≠ quality"
+### DF1 — Loss is low but samples are bad → the canonical "loss ≠ quality"
 **Symptom**: the noise-prediction MSE converges nicely but samples are blurry, mode-collapsed, or wrong.
-**Root cause**: diffusion loss (predict noise at a random timestep) is **weakly correlated with sample quality** — good average noise-prediction still compounds errors over the sampling trajectory. Real culprits are downstream: missing EMA (D2), wrong VAE scaling (D3), train/sample schedule mismatch (D4/D6), no/over CFG (D5).
-**Fix**: the textbook **is-the-number-real** fork → cross-link **verifying-dl-experiments** (**REQUIRED**; it owns loss-low-output-bad). Mechanically walk D2→D6; the single most common miss is evaluating **raw** weights instead of **EMA** (D2). ([stability techniques](https://apxml.com/courses/advanced-diffusion-architectures/chapter-4-advanced-diffusion-training/training-stability-techniques))
+**Root cause**: diffusion loss (predict noise at a random timestep) is **weakly correlated with sample quality** — good average noise-prediction still compounds errors over the sampling trajectory. Real culprits are downstream: missing EMA (DF2), wrong VAE scaling (DF3), train/sample schedule mismatch (DF4/DF6), no/over CFG (DF5).
+**Fix**: the textbook **is-the-number-real** fork → cross-link **verifying-dl-experiments** (**REQUIRED**; it owns loss-low-output-bad). Mechanically walk DF2→DF6; the single most common miss is evaluating **raw** weights instead of **EMA** (DF2). ([stability techniques](https://apxml.com/courses/advanced-diffusion-architectures/chapter-4-advanced-diffusion-training/training-stability-techniques))
 
-### D2 — Sampling from raw (non-EMA) weights → worse than the "same" model
+### DF2 — Sampling from raw (non-EMA) weights → worse than the "same" model
 **Symptom**: samples from the just-saved checkpoint look worse than expected; quality jumps with an EMA checkpoint.
 **Root cause**: diffusion quality depends heavily on EMA — a running average (`decay≈0.999`, ~1000-update window) that denoises the noisy SGD trajectory. Raw weights are the noisy point estimate.
-**Fix**: maintain EMA during training and **sample/evaluate from EMA weights** (`diffusers` `EMAModel`); save both (EMA for inference, raw for resume); verify the eval path actually loaded EMA. Resolves a large share of "D1" reports. ([EMA](https://medium.com/@thibaut.chauffier/training-diffusion-models-from-scratch-21d7a1f18e9e))
+**Fix**: maintain EMA during training and **sample/evaluate from EMA weights** (`diffusers` `EMAModel`); save both (EMA for inference, raw for resume); verify the eval path actually loaded EMA. Resolves a large share of "DF1" reports. ([EMA](https://medium.com/@thibaut.chauffier/training-diffusion-models-from-scratch-21d7a1f18e9e))
 
-### D3 — VAE latent scaling wrong → latents off-unit-variance → diffusion can't learn
+### DF3 — VAE latent scaling wrong → latents off-unit-variance → diffusion can't learn
 **Symptom**: latent-diffusion (SD-style) training is unstable / produces noise or blank output; or a swapped-in custom VAE degrades everything.
 **Root cause**: the model assumes ~unit-variance latents; the VAE output is multiplied by a calibrated `scaling_factor` (SD v1 = `0.18215`). A wrong/missing factor (or a custom VAE with different stats) leaves latents off-scale.
 **Fix**: scale by the VAE's `config.scaling_factor` on encode, divide on decode. For a **custom** VAE, **measure** empirical latent std on a sample and set factor `1/std` — don't inherit `0.18215`. Print latent mean/std before training (~0/~1). ([sd-vae](https://huggingface.co/stabilityai/sd-vae-ft-mse))
 
-### D4 — Noise schedule / timestep / prediction_type mismatch train↔inference
+### DF4 — Noise schedule / timestep / prediction_type mismatch train↔inference
 **Symptom**: structured artifacts, wrong contrast/brightness, or failure at low step counts.
 **Root cause**: betas/alphas schedule (linear/cosine/scaled-linear), `num_train_timesteps`, or `prediction_type` differs between training and the inference scheduler; e.g. trained on `epsilon`, sampled as `v`/`x0`.
 **Fix**: keep the **same** `beta_schedule`, `num_train_timesteps`, `prediction_type` in both — in `diffusers` build the inference scheduler from the training `scheduler.config`. Mismatched `prediction_type` is a silent quality killer.
 
-### D5 — Conditioning never dropped during training → CFG is a no-op / model ignores prompt
+### DF5 — Conditioning never dropped during training → CFG is a no-op / model ignores prompt
 **Symptom**: changing `guidance_scale` at inference barely changes output, or the model ignores conditioning.
 **Root cause**: CFG needs a learned **unconditional** path, trained by randomly replacing the condition with a null embedding for a fraction `p_drop` of examples. No dropout ⇒ no usable unconditional estimate ⇒ CFG no-op.
 **Fix**: during training drop the condition `p_drop≈0.1` (replace with null embedding). At inference use `guidance_scale` ~5–15 for T2I (higher = more prompt adherence, lower diversity). Model-ignores-input is a verifying-dl-experiments concern (**REQUIRED**); the training-side root cause is the missing dropout. ([CFG theory](https://apxml.com/courses/advanced-diffusion-architectures/chapter-4-advanced-diffusion-training/classifier-free-guidance-theory))
 
-### D6 — Sampler ≠ model: a sampler config that doesn't match the trained objective
+### DF6 — Sampler ≠ model: a sampler config that doesn't match the trained objective
 **Symptom**: switching samplers wildly changes quality; one sampler gives noise.
-**Root cause**: samplers assume a `prediction_type` + schedule (D4); ancestral/SDE vs deterministic ODE interact differently with the trained noise level, and step count below the sampler's stable range degrades.
+**Root cause**: samplers assume a `prediction_type` + schedule (DF4); ancestral/SDE vs deterministic ODE interact differently with the trained noise level, and step count below the sampler's stable range degrades.
 **Fix**: validate the checkpoint with the **reference** sampler/step-count from its recipe first, then explore; confirm `prediction_type` matches; for few-step use DPM-Solver++ not plain DDPM. "New sampler → bad samples" is a config mismatch, not a model regression.
 
-### D7 — Uniform-timestep loss weighting → blurry samples → Min-SNR weighting
+### DF7 — Uniform-timestep loss weighting → blurry samples → Min-SNR weighting
 **Symptom**: samples are systematically blurry / low-detail despite long training.
 **Root cause**: uniform loss weight over-weights high-noise (easy) steps relative to low-noise steps that carry fine detail; the gradient is dominated by the easy regime.
-**Fix**: apply **Min-SNR-γ** weighting (γ≈5) so low-noise steps get their share; `diffusers` scripts expose `--snr_gamma`. Compounds with D2/D3 — fix these details together, not in isolation. ([Min-SNR](https://arxiv.org/abs/2303.09556))
+**Fix**: apply **Min-SNR-γ** weighting (γ≈5) so low-noise steps get their share; `diffusers` scripts expose `--snr_gamma`. Compounds with DF2/DF3 — fix these details together, not in isolation. ([Min-SNR](https://arxiv.org/abs/2303.09556))
 
 ---
 
