@@ -50,6 +50,12 @@ local_nvme: true                # /root/autodl-tmp data disk is fast local NVMe,
 
 ## 1. LAUNCH
 
+**First time? (rent → reach the box).** On the AutoDL console: pick a GPU + region with stock → **创建实例**
+(choose the PyTorch image — the base env ships prebuilt) → register your key once via **设置SSH免密登录**
+(so the agent connects non-interactively) → copy the instance's **SSH connection string** + password from the
+console → test `ssh -p <PORT> root@connect.<region>.seetacloud.com 'nvidia-smi'`. That string is your entry to
+every phase below. (Console-only steps; AutoDL's UI shifts — re-check its docs if a label moved.)
+
 **Entry points.** Web console (创建实例) for create/release/power; per-instance SSH connection string from
 the console (`ssh -p <PORT> root@connect.<region>.seetacloud.com`). No first-class platform CLI/REST for
 job control — SSH is the orchestration channel. Set a stable alias per instance in `~/.ssh/config`

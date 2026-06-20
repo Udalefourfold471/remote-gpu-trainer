@@ -109,11 +109,11 @@ Skip phases already done. Each phase delegates substrate to the profile and **en
 (`ckpt_size × N + scratch`). → **verify:** `nvidia-smi` shows the expected GPU and `df -i` is not near 100%.
 
 **Phase 1 — SSH + credentials.** Set the alias/env per the profile (the prebuilt image/base IS the env —
-do not `conda create` on a rental). Push secrets via **stdin, never onto a shared/durable FS**
+do not `conda create` on a rental). **Never rented before? the profile's LAUNCH section walks rent → register SSH key → connect.** Push secrets via **stdin, never onto a shared/durable FS**
 (`references/ssh_transport.md`). → **verify:** `ssh <alias> 'python -c "import torch;print(torch.cuda.is_available())"'`.
 
 **Phase 2 — Wrapper + CPU-smoke gate.** Build an idempotent `run_one`/`run_queue` from `scripts/` (parameterized
-from the profile's OVERRIDES). **Run the cheap CPU smoke locally BEFORE renting** — it kills the dumb,
+from the profile's OVERRIDES; **size batch/workers to the box for a standalone run, but PIN them across cells for a fair comparison** — `references/training/throughput-profiling.md`). **Run the cheap CPU smoke locally BEFORE renting** — it kills the dumb,
 expensive failures. → **verify:** smoke exits 0 on 2 batches, logger disabled.
 
 **Phase 3 — Detached launch.** Launch via the profile's detach primitive; probe briefly (log head + alive +

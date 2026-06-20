@@ -188,6 +188,12 @@ nohup bash -c '
 The §1 short-poll loop for minute-level reaction between patrol ticks. Survives nothing — it is the
 disposable fast-reaction layer; L1/L2 carry correctness. Re-arm exactly ONE after any session resume.
 
+> **`run_in_background` is NOT a substitute for `/loop` on an unattended wait.** A one-shot
+> `run_in_background` sentinel notifies on EXIT — fine while you keep working in an ACTIVE session, but if
+> the session goes idle for hours its exit-notification lands on a closed/reset session and you hear
+> nothing (the silent-monitor-for-hours failure). Any UNATTENDED wait over ~1 h → bind the **L2 `/loop`
+> patrol** (a recurring agent re-wake), never a lone one-shot sentinel.
+
 ### L4 — recovery handbook (continuity)
 Persistent notes a brand-new session inherits from one word ("继续"): exact resume commands, the L1 chain
 definition, every marker path, the "first command on reconnect." Two durable hardenings:

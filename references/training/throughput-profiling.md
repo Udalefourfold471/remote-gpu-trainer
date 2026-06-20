@@ -6,6 +6,11 @@ layer owns *making it RUN fast + locating the mechanical bottleneck*; **verifyin
 *is the resulting number correct*. Cross-link it (**REQUIRED**) wherever a speedup risks changing the
 science (a kernel that alters numerics, a precision swap, dropping samples to "go faster").
 
+> **Size the run to the box — then PIN it for any comparison.** Auto-sizing batch/`num_workers` to the
+> measured GPU/VRAM/vCPU (Phase 0) to use the card well is fine for a STANDALONE job; but for an ablation
+> or baseline-vs-variant comparison, **pin the same batch across all cells** — auto-maximizing per-box
+> silently changes a variable and breaks comparability (**verifying-dl-experiments**, REQUIRED).
+
 To jump: `grep -in '<keyword>' references/training/throughput-profiling.md` (e.g. `bound`, `workers`,
 `compile`, `recompile`, `flash`, `sdpa`, `nsys`, `py-spy`, `channels_last`, `tf32`, `overlap`).
 
