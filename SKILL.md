@@ -82,6 +82,10 @@ Read the matching profile **before Phase 0** — it owns every path, proxy, cred
 verb, and spot rule the phases below delegate to. Each follows the same 8-field schema
 (`profiles/_schema.md`).
 
+> **New here? The path is:** (1) find your platform in the table below → (2) read that profile's **LAUNCH**
+> section (it walks rent → register SSH key → reach the box) → (3) come back and run the 6 phases from Phase 0.
+> Already have a box you can `ssh` into? Skip straight to Phase 0.
+
 | You're on… | Profile | Kind | Detach primitive | Meter-stop verb |
 |---|---|---|---|---|
 | AutoDL (deepest, battle-tested) | `profiles/autodl.md` | ssh-rental | tmux | 关机 (stops meter, **keeps disk** — the AutoDL exception) |
@@ -114,7 +118,7 @@ do not `conda create` on a rental). **Never rented before? the profile's LAUNCH 
 
 **Phase 2 — Wrapper + CPU-smoke gate.** Build an idempotent `run_one`/`run_queue` from `scripts/` (parameterized
 from the profile's OVERRIDES; **size batch/workers to the box for a standalone run, but PIN them across cells for a fair comparison** — `references/training/throughput-profiling.md`). **Run the cheap CPU smoke locally BEFORE renting** — it kills the dumb,
-expensive failures. → **verify:** smoke exits 0 on 2 batches, logger disabled.
+expensive failures (e.g. `python -m <your.train.module> --limit-batches 2 --epochs 1` — substitute your own entrypoint; this gate needs your training code plugged in). → **verify:** that smoke exits 0 on 2 batches with the logger disabled.
 
 **Phase 3 — Detached launch.** Launch via the profile's detach primitive; probe briefly (log head + alive +
 no traceback), then **hand back** — never a blocking foreground `sleep`. → **verify:** within 60 s, the detach
@@ -224,6 +228,6 @@ Load only what the current phase needs.
 - `references/multinode.md` — (advanced) NCCL / fabric-manager / elastic-training gotchas; single-box users skip.
 - `references/training/` — the **DL-training debug layer** (8 files: oom-memory, distributed-launch, precision-stability, throughput-profiling, checkpoint-resume, by-domain, convergence-debugging, data-pipeline) — see "When training breaks" above.
 - `references/self-improvement.md` — the feedback loop: capture a new gotcha (at a bar) into memory or the catalog, personalize on first run, keep platform facts fresh.
-- `scripts/` — parameterized wrapper templates, memory + GPU-health monitors, a VRAM-zombie reaper, a read-only health-patrol tick, FS aggregation, and a load-and-verify checker.
+- `scripts/` — wrapper templates (`run_one`/`run_queue`), monitors (`mem_monitor`, `gpu_health`, `reap_vram_zombies`), the read-only patrol (`health_patrol.sh.template`), transfer/aggregation (`download_loop`, `aggregate_to_fs`, `setup-china-mirrors`), and the load-and-verify checker (`verify_local.py`).
 - `profiles/<platform>.md` — the per-platform substrate (one per platform; `_schema.md` defines the 8 fields).
 - `examples/autodl_sweep/` — one complete, runnable worked case end to end.

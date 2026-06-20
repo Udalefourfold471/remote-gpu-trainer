@@ -4,7 +4,7 @@
 For each <name>/ in the target dir, check:
   - best.pth exists
   - best.pth loads cleanly via torch.load
-  - best.pth contains 'model_state_dict' key
+  - best.pth contains a weights key ('model_state_dict' / 'model' / 'state_dict')
   - best_metrics.json exists and is valid JSON
   - reports best epoch + main metric per ablation
 
@@ -68,8 +68,8 @@ def main() -> int:
             errors.append((name, f"torch.load failed: {str(e)[:100]}"))
             continue
 
-        if not isinstance(ckpt, dict) or "model_state_dict" not in ckpt:
-            errors.append((name, "no model_state_dict key in checkpoint"))
+        if not isinstance(ckpt, dict) or not any(k in ckpt for k in ("model_state_dict", "model", "state_dict")):
+            errors.append((name, "no model/model_state_dict/state_dict key in checkpoint"))
             continue
 
         try:

@@ -17,7 +17,7 @@ To jump: `grep -in '<keyword>' references/training/data-pipeline.md` (e.g. `work
 ## Table of contents
 
 - **DataLoader worker RNG (the augmentation-duplication bug)** — DP1 numpy-RNG-duplicated-across-workers · DP2 IterableDataset-duplicated-workers+ranks · DP3 uneven-shard-DDP-hang
-- **Dataset / collate / DataLoader contract** — DP4 ragged-collate · DP5 pin_memory-custom-type · DP6 spawn-breaks-lambdas · DP7 wrong-__len__ · DP8 size-1-batch-kills-BN · DP9 in-RAM-cache-OOM
+- **Dataset / collate / DataLoader contract** — DP4 ragged-collate · DP5 pin_memory-custom-type · DP6 spawn-breaks-lambdas · DP7 wrong-__len__ · DP8 size-1-batch-kills-BN · DP9 in-RAM-cache-OOM · DP15 /dev/shm-Bus-error
 - **Input preprocessing / labels / shuffle** — DP10 norm-stats-space/split+RGB/BGR · DP11 cv2-BGR · DP12 ToTensor-no-÷255 · DP13 Normalize-before-ToTensor · DP14 shuffle/sampler + set_epoch
 - **Pointers** — throughput-profiling.md, convergence-debugging.md, distributed-launch.md, verifying-dl-experiments (skill)
 
@@ -102,6 +102,11 @@ To jump: `grep -in '<keyword>' references/training/data-pipeline.md` (e.g. `work
 **Symptom**: two shuffle failures — (a) `ValueError: sampler option is mutually exclusive with shuffle` the moment you add any sampler; (b) no error, but in DDP every epoch iterates the data in the **identical** order, so the train-loss curve looks oddly periodic / over-memorized and shuffling "does nothing."
 **Root cause**: (a) `DataLoader.__init__` enforces mutual exclusion — `shuffle` picks the sampler for you (`True`→`RandomSampler`, `False`→`SequentialSampler`), so passing both is contradictory; `batch_sampler` is likewise exclusive with `batch_size`/`shuffle`/`sampler`/`drop_last`. (b) `DistributedSampler` derives its per-epoch permutation from a generator seeded `self.seed + self.epoch`, and `self.epoch` stays **0** until you call `sampler.set_epoch(epoch)` — so without it every epoch uses `seed+0` → byte-identical ordering.
 **Fix**: (a) when you must use a sampler (DistributedSampler, WeightedRandomSampler), set `shuffle=False` and let the sampler own ordering. (b) call `train_sampler.set_epoch(epoch)` at the **start of each epoch** before iterating (Lightning/Accelerate do this for you; raw torchrun is your responsibility). Verify by logging the first few indices of epoch 0 vs 1 — they must differ. (The DDP `set_epoch` **hang** is a different failure → D22.) ([DataLoader source — shuffle/sampler exclusivity](https://github.com/pytorch/pytorch/blob/main/torch/utils/data/dataloader.py), [DistributedSampler.set_epoch](https://docs.pytorch.org/docs/stable/data.html))
+
+### DP15 — `Bus error` / DataLoader worker killed → `/dev/shm` exhausted (the rental-container classic)
+**Symptom**: `DataLoader worker (pid N) is killed by signal: Bus error`, or `RuntimeError: unable to write to file </torch_...>` / `received 0 items of ancdata` — on a **rented container** while the identical code runs fine on your workstation. Usually with `num_workers>0`, often mid-epoch.
+**Root cause**: PyTorch passes worker tensors through **shared memory** (`/dev/shm`). Docker defaults `/dev/shm` to **64 MB** and many rentals inherit that, so a few workers moving normal batches overrun it and the kernel SIGBUS-kills a worker. This is *shared-memory* exhaustion — NOT host-RAM OOM (a bare `Killed` / exit-137 → `gotchas_universal.md` U9) and NOT a deadlock.
+**Fix**: enlarge it at launch — `docker run --shm-size=8g` (or `--ipc=host`); where you can't set that (a fixed rental), switch the IPC strategy `torch.multiprocessing.set_sharing_strategy("file_system")` (fd-passing, slower but uncapped) and/or lower `num_workers`. Tell-tale: `df -h /dev/shm` shows a tiny cap — check it before launch. ([PyTorch multiprocessing shm note](https://docs.pytorch.org/docs/stable/notes/multiprocessing.html), [pytorch#5040](https://github.com/pytorch/pytorch/issues/5040))
 
 ---
 
