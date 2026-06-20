@@ -306,6 +306,8 @@ the key must never be placed in one — secret-leak). Use cloud cron only to **r
 | **Trae** (ByteDance) | Agent / `trae-agent` CLI unattended runs; CI/CD | via a CI/CD pipeline | **no native cron found** → external cron / CI-CD, or rely on Rule 1 | per run |
 | **Generic / none** | any local background-equivalent (else none) | a shell `while`-loop under the turn limit | none | host turn limit |
 
+> **Hosts not in the table** (Gemini CLI, VS Code / Copilot, Goose, Kiro, …) take the **Generic** row until they expose a local recurring runner that holds your SSH key — until then, wire **Rule 1** (the on-box self-push) and let the agent pull on its next turn.
+
 **Binding the layers:** L1 is unchanged everywhere (on-box). Bind **L2** to the host's local recurring
 runner *if* it reaches the box, else to the box's own `cron`/`at` + a push (Rule 1). Bind **L3** to the
 host's local background runner, re-armed once per resume. When a host offers only cloud automation (or

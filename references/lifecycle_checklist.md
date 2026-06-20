@@ -86,7 +86,7 @@ hardcodes a mount, verb, or proxy. Each phase ends in the runnable check from `S
 ## Phase 4 — Durable monitoring
 
 - [ ] For anything over ~1–2 h, deploy the **four-layer architecture** (`references/monitoring_patterns.md`): on-box self-completion chain + session patrol loop + event sentinels + recovery handbook. A session-bound watcher alone dies with the session (principle #3).
-- [ ] Use `run_in_background` (no duration cap, notifies on exit) for long waits; never foreground-poll. NEVER an unquoted `|` inside a poll-regex — it reads stdin and hangs forever.
+- [ ] Use `run_in_background` (no duration cap, notifies on exit; a Claude Code primitive — other hosts map per `monitoring_patterns.md` §7) for long waits; never foreground-poll. NEVER an unquoted `|` inside a poll-regex — it reads stdin and hangs forever.
 - [ ] Watch `df -i` trend (not just `df -h`), cgroup memory %, new FINISHED/ERROR/Traceback markers, and fast-finish (< ~50% expected duration → probable failure).
 - [ ] Reconcile each watcher against the job's REAL process/artifact (`tmux ls`/`squeue`/`pgrep` + output `mtime`) — a watcher's own state is a claim, not ground truth (principle #3). Tear a watcher down when its job is superseded.
 - [ ] Classify each failure → its fixed remediation (see Failure handling below); **never blind-retry**.

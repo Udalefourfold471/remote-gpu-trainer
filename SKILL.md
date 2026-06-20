@@ -228,6 +228,6 @@ Load only what the current phase needs.
 - `references/multinode.md` — (advanced) NCCL / fabric-manager / elastic-training gotchas; single-box users skip.
 - `references/training/` — the **DL-training debug layer** (8 files: oom-memory, distributed-launch, precision-stability, throughput-profiling, checkpoint-resume, by-domain, convergence-debugging, data-pipeline) — see "When training breaks" above.
 - `references/self-improvement.md` — the feedback loop: capture a new gotcha (at a bar) into memory or the catalog, personalize on first run, keep platform facts fresh.
-- `scripts/` — wrapper templates (`run_one`/`run_queue`), monitors (`mem_monitor`, `gpu_health`, `reap_vram_zombies`), the read-only patrol (`health_patrol.sh.template`), transfer/aggregation (`download_loop`, `aggregate_to_fs`, `setup-china-mirrors`), and the load-and-verify checker (`verify_local.py`).
+- `scripts/` — wrapper templates (`run_one`/`run_queue`), monitors (`mem_monitor`, `gpu_health`, `reap_vram_zombies`), the read-only patrol (`health_patrol.sh.template`), transfer/aggregation (`download_loop`, `aggregate_to_fs`, `setup-china-mirrors`), the load-and-verify checker (`verify_local.py`), and the `verified`-stamp freshness linter (`check_staleness.py`).
 - `profiles/<platform>.md` — the per-platform substrate (one per platform; `_schema.md` defines the 8 fields).
 - `examples/autodl_sweep/` — one complete, runnable worked case end to end.
