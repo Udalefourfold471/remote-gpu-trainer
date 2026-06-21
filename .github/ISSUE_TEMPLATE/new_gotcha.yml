@@ -1,0 +1,45 @@
+name: New gotcha
+description: Propose a symptom → root cause → fix to add to the catalog.
+title: "[gotcha] <short symptom>"
+labels: ["gotcha"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The bar (see Contributing): root-caused, reproduced, and generalizable beyond one project.
+        A one-off flake is a hypothesis, not a gotcha.
+  - type: textarea
+    id: symptom
+    attributes:
+      label: Symptom
+      description: What you observed — error text, behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: cause
+    attributes:
+      label: Root cause
+      description: Why it happens.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Fix
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Where it belongs
+      options:
+        - Universal (any rented/remote GPU) → references/gotchas_universal.md
+        - Platform-specific → that profile's §7
+        - Training / DL → references/training/
+    validations:
+      required: true
+  - type: input
+    id: reproduced
+    attributes:
+      label: Reproduced where?
+      description: Platform / setup you saw it on, and whether it reproduces.

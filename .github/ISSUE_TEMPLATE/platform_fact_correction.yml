@@ -1,0 +1,42 @@
+name: Platform fact correction
+description: A billing / teardown / spot / storage fact in a profile is wrong or out of date.
+title: "[fact] <platform>: <what's wrong>"
+labels: ["correction"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Six of the seven profiles are researched from docs rather than live-tested, so corrections are
+        very welcome. Point at the exact fact and, if you can, give a current source.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform / profile
+      options:
+        - AutoDL
+        - RunPod
+        - vast.ai
+        - Lambda
+        - Paperspace
+        - China (恒源云 / 矩池云 / Featurize / 揽睿星舟)
+        - generic-ssh (bare SSH / Slurm / K8s / Colab-Kaggle)
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: What the profile currently says
+      description: Quote the line or section, e.g. "profiles/runpod.md §5, gotcha RP4".
+    validations:
+      required: true
+  - type: textarea
+    id: corrected
+    attributes:
+      label: The correct value
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source / date
+      description: A current docs URL, or "I ran this on <date>".

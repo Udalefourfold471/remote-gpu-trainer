@@ -1,0 +1,27 @@
+name: Bug report
+description: A script, template, or doc is wrong or doesn't run.
+title: "[bug] <short summary>"
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What's wrong
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: File / location
+      description: e.g. "scripts/run_one.sh.template", "references/training/oom-memory.md M8".
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduce / expected vs actual
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Agent host (Claude Code / Codex / Cursor / …), platform, and OS/shell if relevant.

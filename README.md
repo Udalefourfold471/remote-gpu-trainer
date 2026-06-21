@@ -1,9 +1,9 @@
 # remote-gpu-trainer
 
-**An Agent Skill for running long GPU jobs on machines you rent but don't own.** Deploy, train,
-monitor, and tear down safely across [AutoDL](https://www.autodl.com), RunPod, vast.ai, Lambda,
-Paperspace, the Chinese platforms (恒源云 / 矩池云 / Featurize / 揽睿星舟), bare SSH boxes, Slurm, and
-Kubernetes. One instance, or a fan-out of many.
+An Agent Skill for running long GPU jobs on machines you rent instead of own. It covers deploying,
+training, monitoring, and tearing a job down on [AutoDL](https://www.autodl.com), RunPod, vast.ai,
+Lambda, Paperspace, the Chinese platforms (恒源云 / 矩池云 / Featurize / 揽睿星舟), bare SSH boxes,
+Slurm, and Kubernetes, for one instance or a fan-out of many.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Agent Skills standard](https://img.shields.io/badge/Agent%20Skills-SKILL.md-blue)](https://agentskills.io)
@@ -11,16 +11,17 @@ Kubernetes. One instance, or a fan-out of many.
 [![Platforms](https://img.shields.io/badge/platform%20profiles-7-orange)](#whats-inside)
 [![Status](https://img.shields.io/badge/status-pre--release-yellow)](#verification-status)
 
-> **Disambiguation:** "AutoDL" here is the **autodl.com** GPU-rental platform, not AutoML or NAS. And
-> this is an **Agent Skill** — a `SKILL.md` with reference docs and script templates — not a CLI or an
-> SDK. It rides *above* each platform's API and encodes the operational survival knowledge those APIs
-> leave out.
+> **What this is, and what it isn't.** "AutoDL" here means the [autodl.com](https://www.autodl.com)
+> GPU-rental platform, not AutoML or NAS. And this is an Agent Skill, meaning a `SKILL.md` with reference
+> docs and script templates, not a CLI or an SDK. It sits on top of each platform's API and captures the
+> operational knowledge those APIs leave out.
 
-The whole skill is built on one mental model: **you are a short-term tenant on someone else's machine.**
-So it teaches tenant survival — detach the job, make the result outlive the box, stop the meter without
-losing data — and treats that as a single model across every backend. Only the per-platform specifics
-(stop-vs-destroy billing, machine-locked volumes, `/root` ephemerality, acceleration proxy vs HF mirror,
-spot grace) get pushed down into one profile per platform.
+The skill rests on one idea: when you rent a GPU, you are a short-term tenant on someone else's machine.
+Everything follows from that. Detach the job so it survives a dropped connection, get the results off the
+box before it goes away, and stop the meter without losing data. That part is the same on every backend.
+The things that genuinely vary between platforms (stop-vs-destroy billing, machine-locked volumes,
+whether `/root` survives a power-off, acceleration proxy vs HF mirror, spot grace windows) are pushed
+down into one profile per platform.
 
 ```mermaid
 flowchart TD
@@ -47,39 +48,37 @@ flowchart TD
 
 ## Why this exists
 
-Renting a GPU is the easy part. The expensive surprises come from everything around the job: a stopped
-box that quietly keeps billing, a "synced" checkpoint that never actually wrote because the disk ran out
-of inodes, a download that stalls behind the wrong mirror, a `terminate` that deletes the only copy of a
-week's training. None of that is in a platform's API docs, and most of it only bites once you've already
-paid for it.
+Renting the GPU is the easy part. The costly surprises are everything around the job. A box you
+"stopped" that keeps billing. A checkpoint that printed `synced` but never actually wrote, because the
+disk ran out of inodes rather than space. A download that hangs behind the wrong mirror. A `terminate`
+that takes the only copy of a week's training with it. None of this is in the platform's API docs, and
+you usually learn it after you have already paid.
 
-This skill collects that knowledge into a form an agent can act on: ten operating principles for *why*
-each step matters, a six-phase lifecycle that ends every phase in a runnable check, and one profile per
-platform that pins the concrete commands. It is opinionated about the things that cost money or data, and
-quiet about the rest.
+This skill puts that knowledge somewhere an agent can use it: ten operating principles that say why each
+step matters, a six-phase lifecycle where every phase ends in a check you can run, and one profile per
+platform with the exact commands. It spends its attention on the things that cost money or data.
 
 ## How it differs
 
-General orchestrators — **SkyPilot**, **dstack**, **Modal** — own or abstract the infrastructure and
-price-shop across Western clouds. They are excellent at that, and this skill does not compete with them.
-But none of them supports AutoDL or the Chinese platforms, and each assumes its own daemon or cluster
-model.
+The general orchestrators (SkyPilot, dstack, Modal) own or abstract the infrastructure and price-shop
+across Western clouds. They are good at that, and this skill does not compete with them. They also do not
+support AutoDL or the Chinese platforms, and each one brings its own daemon or cluster model.
 
-`remote-gpu-trainer` meets you on the **raw rented instance you already control**, and concentrates on a
-blind spot those tools leave open: the Chinese platforms and bare-SSH cheap rentals, where disk-budget
-design, inode caps, mirror stalls, cgroup OOM, spot-grace windows, and *irreversible* teardown are the
-actual job. The two approaches compose well: let SkyPilot or dstack move the box for you, then let this
-skill make your *code* resume-correct so their recovery actually restores progress.
+This skill works on the raw rented instance you already have. It concentrates on the part those tools
+skip: the Chinese platforms and cheap bare-SSH rentals, where the day-to-day work is disk budgeting,
+inode caps, mirror stalls, cgroup OOM, spot grace windows, and teardown you cannot take back. The two
+approaches go together. Let SkyPilot or dstack move the box for you, then use this skill to make your
+code resume correctly so that recovery actually continues the run instead of restarting it.
 
 ## Architecture and layout
 
-The design follows the Agent Skills idea of **progressive disclosure**: a small always-loaded hub, and
-deeper material loaded only when a phase needs it. The split that makes it portable is
-**platform-agnostic core, platform-specific edges** — the principles and lifecycle hold everywhere, and
-every concrete path, proxy, billing verb, and spot rule lives in exactly one place, the profile.
+The layout uses the Agent Skills idea of progressive disclosure: a small hub that is always loaded, with
+the deeper material read in only when a phase needs it. What keeps it portable is the split between a
+platform-agnostic core and platform-specific edges. The principles and the lifecycle hold everywhere.
+Every concrete path, proxy, billing verb, and spot rule lives in exactly one place, the profile.
 
-The six-phase lifecycle is the operational spine. Each phase delegates its substrate to the active
-profile and ends in a check you can run:
+The six-phase lifecycle is the operational spine. Each phase delegates its platform details to the
+active profile and ends in a check you can run:
 
 ```mermaid
 flowchart LR
@@ -90,7 +89,7 @@ flowchart LR
     P4 --> P5["5 · verify + teardown<br/><b>Iron Law</b>"]
 ```
 
-The folders map onto that architecture directly:
+The folders map straight onto that:
 
 ```text
 remote-gpu-trainer/
@@ -130,16 +129,16 @@ remote-gpu-trainer/
 └── evals/                       # cases.jsonl + run_evals.py (no-API-key drift guard) + RESULTS.md
 ```
 
-Each profile fills the same eight fields, so a platform you've never used reads like one you have:
-launch · storage survival-matrix · network · spot/resume · teardown/billing · daemon · gotchas · script
+Each profile fills the same eight fields, so a platform you have never used reads like one you have:
+launch, storage survival-matrix, network, spot/resume, teardown/billing, daemon, gotchas, and script
 overrides.
 
 ## Install and deploy
 
-This is a standard [Agent Skill](https://agentskills.io): one folder with a `SKILL.md` at its root.
-Installing it means cloning that folder into wherever your agent looks for skills, then restarting the
-agent. It auto-triggers on remote or rented-GPU deploy / train / monitor tasks — you don't invoke it by
-name. Keep the folder named `remote-gpu-trainer`; the standard requires the directory name to match the
+This is a standard [Agent Skill](https://agentskills.io): one folder with a `SKILL.md` at its root. To
+install it, clone the folder into wherever your agent looks for skills and restart the agent. It triggers
+on its own for remote or rented-GPU deploy, train, and monitor tasks, so you do not call it by name. Keep
+the folder named `remote-gpu-trainer`, since the standard requires the directory name to match the
 skill's `name:` field.
 
 **Claude Code**
@@ -156,9 +155,9 @@ git clone https://github.com/Hanyuyuan6/remote-gpu-trainer.git ~/.agents/skills/
 
 **Cursor · Trae · Gemini CLI · VS Code / Copilot · Goose · Kiro · other compatible agents**
 
-Clone the same folder into that agent's skills directory (each agent's docs, or
-[agentskills.io](https://agentskills.io), give the exact location). Because they all read the same open
-`SKILL.md` standard, the folder works unchanged across every one of them.
+Clone the same folder into that agent's skills directory; each agent's docs, or
+[agentskills.io](https://agentskills.io), give the exact location. They all read the same open `SKILL.md`
+standard, so the folder works unchanged across them.
 
 **Verify the install (optional).** With [uv](https://github.com/astral-sh/uv):
 
@@ -166,88 +165,89 @@ Clone the same folder into that agent's skills directory (each agent's docs, or
 uvx --from skills-ref agentskills validate ~/.claude/skills/remote-gpu-trainer   # → "Valid skill"
 ```
 
-> **Two caveats.** The companion skills this one cross-links (`verifying-dl-experiments`,
-> `superpowers:*`, `huggingface-skills:*`) are optional separate installs; it works standalone without
-> them. And a few durable-monitoring recipes assume a host background-task runner plus a scheduler — map
-> those to your agent's equivalents, using the per-host table in `references/monitoring_patterns.md` §7.
+> **Two caveats.** The companion skills it cross-links (`verifying-dl-experiments`, `superpowers:*`,
+> `huggingface-skills:*`) are optional separate installs, and the skill works on its own without them. A
+> few of the monitoring recipes assume the host has a background-task runner and a scheduler; map those to
+> your agent's equivalents with the per-host table in `references/monitoring_patterns.md` §7.
 
 ## What's inside
 
-- **`SKILL.md`** — the hub. Ten platform-agnostic operating principles, the six-phase lifecycle with a
-  runnable gate per phase, the platform selector, and the cross-links into everything below.
-- **`references/`** — the platform-agnostic knowledge: `principles.md` (the ten invariants expanded),
-  `gotchas_universal.md` (U1–U43, each a `symptom → root cause → fix`; U36–U39 are delegated cross-links), `monitoring_patterns.md`
-  (four-layer durable monitoring plus a cross-host portability map), and the focused playbooks for SSH
-  transport, China networking, spot resilience, parallel ablation, multi-node, and self-improvement.
-- **`references/training/`** — the **DL-training debug layer**, eight files for when the *run* breaks
-  rather than the platform: OOM, distributed launch and multi-GPU hangs, precision and loss spikes,
-  throughput profiling, checkpoint/resume, per-domain gotchas, convergence ("runs but won't learn"), and
-  dataloader correctness.
-- **`profiles/`** — one file per platform, the only place concrete specifics live. `autodl` is the
-  deepest; alongside it are `runpod`, `vastai`, `lambda`, `paperspace`, `china`, and `generic-ssh`
-  (covering Slurm, K8s, Colab, Kaggle). `_schema.md` defines the shared eight-field contract.
-- **`scripts/`** — parameterized wrapper templates, a memory monitor, a GPU-health probe, a VRAM-zombie
-  reaper, a read-only health-patrol tick, FS aggregation, a resumable download loop, the China-mirror
-  setup, and a load-and-verify checker.
-- **`examples/autodl_sweep/`** — one complete worked case, end to end.
-- **`evals/`** — a retrieval drift-guard: `cases.jsonl` holds realistic scenarios, `run_evals.py` checks
-  with no API key that every scenario's answer is still present at its documented location, and
-  `RESULTS.md` records fresh-agent navigation runs.
+- **`SKILL.md`** is the hub: ten platform-agnostic operating principles, the six-phase lifecycle with a
+  runnable gate per phase, the platform selector, and the links into everything below.
+- **`references/`** holds the platform-agnostic knowledge. `principles.md` expands the ten invariants;
+  `gotchas_universal.md` is the U1–U43 catalog, each entry a `symptom → root cause → fix` (U36–U39 are
+  delegated cross-links); `monitoring_patterns.md` covers four-layer durable monitoring and a cross-host
+  portability map; and the focused playbooks handle SSH transport, China networking, spot resilience,
+  parallel ablation, multi-node, and self-improvement.
+- **`references/training/`** is the DL-training debug layer, eight files for when the *run* breaks rather
+  than the platform: OOM, distributed launch and multi-GPU hangs, precision and loss spikes, throughput
+  profiling, checkpoint/resume, per-domain gotchas, convergence ("runs but won't learn"), and dataloader
+  correctness.
+- **`profiles/`** is one file per platform, the only place concrete specifics live. `autodl` is the
+  deepest; alongside it are `runpod`, `vastai`, `lambda`, `paperspace`, `china`, and `generic-ssh` (which
+  also covers Slurm, K8s, Colab, and Kaggle). `_schema.md` defines the shared eight-field contract.
+- **`scripts/`** has the parameterized wrapper templates, a memory monitor, a GPU-health probe, a
+  VRAM-zombie reaper, a read-only health-patrol tick, FS aggregation, a resumable download loop, the
+  China-mirror setup, and a load-and-verify checker.
+- **`examples/autodl_sweep/`** is one complete worked case from start to finish.
+- **`evals/`** is a retrieval drift-guard. `cases.jsonl` holds realistic scenarios, `run_evals.py` checks
+  with no API key that each scenario's answer is still at its documented location, and `RESULTS.md`
+  records fresh-agent navigation runs.
 
 ## Scope
 
 - **For:** rented or remote GPU instances (Chinese and Western clouds, bare SSH, Slurm, K8s); single or
-  multi-instance; long-running jobs — training, eval, ablation sweeps, batch inference, large data
-  processing.
+  multi-instance; long-running jobs such as training, eval, ablation sweeps, batch inference, and large
+  data processing.
 - **Not for:** purely-local single-GPU training, in-instance multi-GPU DDP (use `torchrun` /
   `accelerate`), managed multi-cloud price-shopping (use SkyPilot's skill), or zero-ops serverless (use
   Modal).
 
 ## Verification status
 
-The **AutoDL** profile reflects the author's hands-on, daily use. The other six profiles — RunPod,
-vast.ai, Lambda, Paperspace, the Chinese platforms, and the generic SSH / Slurm / K8s core — are
-researched from each platform's official documentation and community reports. Every money-affecting fact
-is cited inline and stamped `verified <month>`, but they are **not yet independently live-tested** by the
-author. Treat them as a well-sourced starting map, not a guarantee.
+The **AutoDL** profile reflects the author's hands-on, daily use. The other six (RunPod, vast.ai, Lambda,
+Paperspace, the Chinese platforms, and the generic SSH / Slurm / K8s core) are researched from each
+platform's official documentation and community reports. Every money-affecting fact is cited inline and
+stamped `verified <month>`, but the author has not independently live-tested them yet, so treat them as a
+well-sourced starting map rather than a guarantee.
 
-The skill is built to **verify before any irreversible or costly action** (the Phase-0 live measurement,
-the teardown Iron Law), so a stale fact surfaces as "re-check the docs," not a silent loss. Corrections,
-and "I ran this, here's what changed" reports, are very welcome — please open an issue or PR.
+The skill is built to verify before any costly or irreversible action (the Phase-0 live measurement and
+the teardown Iron Law), so a stale fact shows up as "re-check the docs" instead of a silent loss.
+Corrections, and "I ran this, here's what changed" reports, are very welcome; please open an issue or PR.
 
 ## Disclaimer
 
-This is an independent community resource. It is **not affiliated with, endorsed by, or sponsored by**
+This is an independent community resource. It is not affiliated with, endorsed by, or sponsored by
 AutoDL, RunPod, vast.ai, Lambda, Paperspace, DigitalOcean, or any platform named here. All product names
-and trademarks belong to their respective owners and are used **nominatively**, only to identify the
-platform a piece of guidance applies to. Platform facts are synthesized from public documentation and
-community reports (cited inline) and were accurate at the noted `verified` date. **Platforms change their
-pricing, billing verbs, and limits, so verify against current official docs before relying on a teardown
-or billing fact** (see `references/self-improvement.md` §5). Provided "as is" under the MIT License,
-without warranty.
+and trademarks belong to their respective owners and are used nominatively, only to identify the platform
+a piece of guidance applies to. Platform facts are synthesized from public documentation and community
+reports (cited inline) and were accurate at the noted `verified` date. Platforms change their pricing,
+billing verbs, and limits, so verify against current official docs before relying on a teardown or
+billing fact (see `references/self-improvement.md` §5). Provided "as is" under the MIT License, without
+warranty.
 
 ## 中文简介
 
-面向在**租来的 / 远程 GPU**(不是你自己的机器)上跑长任务的研究者与工程师,覆盖 AutoDL、RunPod、
-vast.ai、Lambda、Paperspace、国内平台(恒源云 / 矩池云 / Featurize / 揽睿星舟)、裸 SSH 机器、Slurm、
-Kubernetes,单机或多机并行。
+面向在租来的或远程 GPU(不是自己的机器)上跑长任务的研究者和工程师,覆盖 AutoDL、RunPod、vast.ai、
+Lambda、Paperspace、国内平台(恒源云 / 矩池云 / Featurize / 揽睿星舟)、裸 SSH 机器、Slurm 和
+Kubernetes,单机或多机并行都可以。
 
-核心隐喻:**你是别人机器上的短期租客。** 所以技能教的是「让作业活过这台租来的机器」:把作业 detach、
-让结果先于实例存活、再安全地停掉计费。一套心智模型跨所有后端,只把每个平台的差异(停止 vs 销毁的计费、
-机器锁定的网盘、`/root` 是否易失、加速代理 vs HF 镜像、spot 抢占宽限)参数化下沉到各
-`profiles/<平台>.md`。
+核心想法很简单:租 GPU 的时候,你只是别人机器上的短期租客。所以技能教的是怎么让作业活过这台机器:把
+作业 detach 让它扛得住断连,在实例消失前把结果取下来,再安全地停掉计费。这套思路在所有后端都一样。真
+正因平台而异的部分(停止与销毁的计费差别、锁定到机器的网盘、`/root` 是否在关机后保留、加速代理与 HF
+镜像、spot 抢占宽限)都下沉到各自的 `profiles/<平台>.md`。
 
-它专注的,正是 SkyPilot / dstack / Modal 这类抽象层略过的盲区:**AutoDL + 国内平台 + 裸 SSH 廉价租卡**
-上的磁盘预算、inode 上限、镜像卡顿、cgroup OOM、spot 宽限窗口,以及不可逆的销毁操作。安装方式见
-[Install and deploy](#install-and-deploy):把整个文件夹克隆进对应 agent 的 skills 目录即可,重启后自动
+它专注的,正是 SkyPilot、dstack、Modal 这类抽象层略过的盲区:AutoDL 和国内平台,以及裸 SSH 廉价租卡上
+的磁盘预算、inode 上限、镜像卡顿、cgroup OOM、spot 宽限窗口,还有不可逆的销毁操作。安装见
+[Install and deploy](#install-and-deploy):把整个文件夹克隆进对应 agent 的 skills 目录,重启后会自动
 触发。
 
 ## Contributing
 
-Issues and PRs are welcome, especially **new platform profiles** and **new gotchas** with a concrete
-`symptom → root cause → fix`. Keep every example generic: no real project names, hostnames, IPs, ports,
-or keys. The `references/self-improvement.md` protocol describes the bar a new gotcha has to clear
-(root-caused, reproduced, generalizable) before it earns a place in the catalog.
+Issues and PRs are welcome, especially new platform profiles and new gotchas that come with a concrete
+`symptom → root cause → fix`. Keep every example generic, with no real project names, hostnames, IPs,
+ports, or keys. The bar a new gotcha has to clear before it earns a place in the catalog (root-caused,
+reproduced, generalizable) is described in `references/self-improvement.md`.
 
 ## License
 
