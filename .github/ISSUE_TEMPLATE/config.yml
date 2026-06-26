@@ -1,5 +1,0 @@
-blank_issues_enabled: true
-contact_links:
-  - name: Contributing guide
-    url: https://github.com/Hanyuyuan6/remote-gpu-trainer#contributing
-    about: The bar a new gotcha or profile has to clear (root-caused, reproduced, generalizable) before it lands.

